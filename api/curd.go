@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	. "pkg.deepin.io/server/utils/logger"
+	"reflect"
 )
 
 type CURD interface {
@@ -13,11 +14,12 @@ type CURD interface {
 	Data() interface{}
 }
 
-func Create(curd CURD) gin.HandlerFunc {
+func Create(v interface{}) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rr := NewRsp(c)
 		defer rr.Render()
 
+		curd := reflect.New(reflect.TypeOf(v).Elem()).Interface().(CURD)
 		if err := c.Bind(curd); nil != err {
 			Logger.Warning("Check Data %v Failed: %v", curd, err)
 			rr.Error(400, NewError(ErrIllegalDataFormat, err.Error()))
@@ -39,11 +41,12 @@ func Create(curd CURD) gin.HandlerFunc {
 	}
 }
 
-func Delete(curd CURD) gin.HandlerFunc {
+func Delete(v interface{}) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		rr := NewRsp(c)
 		defer rr.Render()
 
+		curd := reflect.New(reflect.TypeOf(v).Elem()).Interface().(CURD)
 		id := c.Params.ByName("id")
 		if err := curd.GetBy("`id`=?", id); nil != err {
 			Logger.Error("%v", err)
@@ -55,6 +58,11 @@ func Delete(curd CURD) gin.HandlerFunc {
 			Logger.Error("%v", err)
 			rr.Error(400, NewError(err, ""))
 			return
+		}
+
+		v, _ := c.Get("Callback")
+		if callback, _ := v.(func(interface{})); callback != nil {
+			callback(curd)
 		}
 		rr.Data = curd.Data()
 	}
