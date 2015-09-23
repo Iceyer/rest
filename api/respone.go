@@ -67,7 +67,6 @@ func (r *Rsp) Render() {
 			r.Error(500, NewError(InterError, err))
 			r.c.JSON(r.ErrorCode, r)
 		}
-		fmt.Println("test", jsonp, r.Data)
 		if "" != jsonp {
 			r.c.Writer.WriteHeader(200)
 			r.c.Writer.WriteString(fmt.Sprintf("%s(%s)", jsonp, string(jdata)))
