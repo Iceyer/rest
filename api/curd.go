@@ -21,19 +21,19 @@ func Create(v interface{}) gin.HandlerFunc {
 
 		curd := reflect.New(reflect.TypeOf(v).Elem()).Interface().(CURD)
 		if err := c.Bind(curd); nil != err {
-			Logger.Warning("Check Data %v Failed: %v", curd, err)
+			Logger.Warning("Bind object with %v failed: %v", curd.Data(), err)
 			rr.Error(400, NewError(ErrIllegalDataFormat, err.Error()))
 			return
 		}
 
 		if err := curd.Check(); nil != err {
-			Logger.Warning("Check Data %v Failed: %v", curd, err)
+			Logger.Warning("Check object %v failed: %v", curd.Data(), err)
 			rr.Error(400, NewError(err, ""))
 			return
 		}
 
 		if err := curd.Create(); nil != err {
-			Logger.Error("Create Data %v Failed: %v", curd, err)
+			Logger.Error("Create object %v failed: %v", curd.Data(), err)
 			rr.Error(400, NewError(err, ""))
 			return
 		}
