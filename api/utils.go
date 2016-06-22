@@ -11,6 +11,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"pkg.deepin.io/server/utils/config"
 	"pkg.deepin.io/server/utils/db"
+	//	. "pkg.deepin.io/server/utils/logger"
 )
 
 var (
@@ -91,10 +92,13 @@ func PageQuery(c *gin.Context, v interface{}) error {
 			case reflect.String:
 				inFormat := fmt.Sprintf("`%v` like ?", k)
 				if precise {
-					inFormat = fmt.Sprintf("`%v` = ?", k)
+					inFormat = fmt.Sprintf("`%v` in ( %v )", k, "?")
+					mdb = mdb.Where(inFormat, inVlaues[0])
+					cdb = cdb.Where(inFormat, inVlaues[0])
+				} else {
+					mdb = mdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
+					cdb = cdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
 				}
-				mdb = mdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
-				cdb = cdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
 			case reflect.Bool:
 				vb := true
 				if "false" == fmt.Sprint(inVlaues[0]) {
