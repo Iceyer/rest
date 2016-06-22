@@ -50,6 +50,11 @@ func PageQuery(c *gin.Context, v interface{}) error {
 		order = "asc"
 	}
 
+	mode := c.Request.Form.Get("mode")
+	precise := false
+	if "precise" == mode {
+		precise = true
+	}
 	t := reflect.ValueOf(v).Elem().Type().Elem()
 
 	tv := reflect.New(reflect.ValueOf(v).Elem().Type())
@@ -85,6 +90,9 @@ func PageQuery(c *gin.Context, v interface{}) error {
 			switch f.Type.Kind() {
 			case reflect.String:
 				inFormat := fmt.Sprintf("`%v` like ?", k)
+				if precise {
+					inFormat = fmt.Sprintf("`%v` = ?", k)
+				}
 				mdb = mdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
 				cdb = cdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
 			case reflect.Bool:
