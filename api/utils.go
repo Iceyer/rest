@@ -1,9 +1,11 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -11,7 +13,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"pkg.deepin.io/server/utils/config"
 	"pkg.deepin.io/server/utils/db"
-	//	. "pkg.deepin.io/server/utils/logger"
+	. "pkg.deepin.io/server/utils/logger"
 )
 
 var (
@@ -56,79 +58,112 @@ func PageQuery(c *gin.Context, v interface{}) error {
 	if "precise" == mode {
 		precise = true
 	}
-	t := reflect.ValueOf(v).Elem().Type().Elem()
 
+	t := reflect.ValueOf(v).Elem().Type().Elem()
 	tv := reflect.New(reflect.ValueOf(v).Elem().Type())
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 		tv = tv.Elem()
 	}
+
+	pri_key := "id"
 	mdb := db.Maria
 	cdb := mdb.Model(tv.Interface())
 	//Check Json Tag First
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		fk := f.Tag.Get("json")
-		if "" == fk {
-			fk = strings.ToLower(f.Name)
+		if f.Tag.Get("gorm") == "primary_key" {
+			pri_key = gorm.ToDBName(f.Name)
 		}
-		v, ok := c.Request.Form[fk]
+		jsonKey := f.Tag.Get("json")
+		if "" == jsonKey {
+			jsonKey = strings.ToLower(f.Name)
+		}
+		queryValues, ok := c.Request.Form[jsonKey]
 		if !ok {
 			continue
 		}
-		inVlaues := [](interface{}){}
+
+		inValues := [](interface{}){}
+		inValuesStr := []int{}
 		inExprision := " "
-		for _, f := range v {
-			inVlaues = append(inVlaues, f)
+		for _, f := range queryValues {
+			intv, _ := strconv.Atoi(f)
+			inValuesStr = append(inValuesStr, intv)
+			inValues = append(inValues, f)
 			inExprision += "?,"
 		}
 		inExprision = inExprision[0 : len(inExprision)-1]
 
-		k := gorm.ToDBName(f.Name)
-		if 1 == len(inVlaues) {
-			//for int/bool
+		k := f.Tag.Get("sqlname")
+		if "" == k {
+			k = f.Name
+		}
+		k = gorm.ToDBName(k)
+
+		if f.Type.Kind() == reflect.Slice {
+			sort.Ints(inValuesStr)
+			valdata, _ := json.Marshal(inValuesStr)
+			valstr := string(valdata)
+			//valstr = strings.Replace(valstr, "[", "", -1)
+			//valstr = strings.Replace(valstr, "]", "", -1)
 			inFormat := fmt.Sprintf("`%v` = ?", k)
-			switch f.Type.Kind() {
-			case reflect.String:
-				inFormat := fmt.Sprintf("`%v` like ?", k)
-				if precise {
-					inFormat = fmt.Sprintf("`%v` in ( %v )", k, "?")
-					mdb = mdb.Where(inFormat, inVlaues[0])
-					cdb = cdb.Where(inFormat, inVlaues[0])
-				} else {
-					mdb = mdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
-					cdb = cdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inVlaues[0])))
-				}
-			case reflect.Bool:
-				vb := true
-				if "false" == fmt.Sprint(inVlaues[0]) {
-					vb = false
-				}
-				inFormat := fmt.Sprintf("`%v` = ?", k)
-				mdb = mdb.Where(inFormat, vb)
-				cdb = cdb.Where(inFormat, vb)
-			case reflect.Int:
-				id, err := strconv.Atoi(fmt.Sprint(inVlaues[0]))
-				if nil != err {
-					return err
-				}
-				fmt.Println(inVlaues[0], id)
-				mdb = mdb.Where(inFormat, id)
-				cdb = cdb.Where(inFormat, id)
-			default:
-				inFormat := fmt.Sprintf("`%v` = ?", k)
-				mdb = mdb.Where(inFormat, fmt.Sprintf("%v", inVlaues[0]))
-				cdb = cdb.Where(inFormat, fmt.Sprintf("%v", inVlaues[0]))
-			}
+			mdb = mdb.Where(inFormat, valstr)
+			cdb = cdb.Where(inFormat, valstr)
 		} else {
-			inFormat := fmt.Sprintf("`%v` in ( %v )", k, inExprision)
-			mdb = mdb.Where(inFormat, inVlaues...)
-			cdb = cdb.Where(inFormat, inVlaues...)
+			if 1 == len(inValues) {
+				//for int/bool
+				inFormat := fmt.Sprintf("`%v` = ?", k)
+				Logger.Info("%v %v %v", f.Name, k, f.Type.Kind())
+				switch f.Type.Kind() {
+				case reflect.String:
+					inFormat := fmt.Sprintf("`%v` like ?", k)
+					if precise {
+						inFormat = fmt.Sprintf("`%v` in ( %v )", k, "?")
+						mdb = mdb.Where(inFormat, inValues[0])
+						cdb = cdb.Where(inFormat, inValues[0])
+					} else {
+						mdb = mdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inValues[0])))
+						cdb = cdb.Where(inFormat, mysqlEscape(fmt.Sprintf("%%%v%%", inValues[0])))
+					}
+				case reflect.Bool:
+					vb := true
+					if "false" == fmt.Sprint(inValues[0]) {
+						vb = false
+					}
+					inFormat := fmt.Sprintf("`%v` = ?", k)
+					mdb = mdb.Where(inFormat, vb)
+					cdb = cdb.Where(inFormat, vb)
+				case reflect.Int:
+					id, err := strconv.Atoi(fmt.Sprint(inValues[0]))
+					Logger.Info("%v %v %v", f.Name, id, err)
+					if nil != err {
+						return err
+					}
+					Logger.Info("%v %v %v", f.Name, inFormat, id)
+					mdb = mdb.Where(inFormat, id)
+					cdb = cdb.Where(inFormat, id)
+				default:
+					inFormat := fmt.Sprintf("`%v` = ?", k)
+					mdb = mdb.Where(inFormat, fmt.Sprintf("%v", inValues[0]))
+					cdb = cdb.Where(inFormat, fmt.Sprintf("%v", inValues[0]))
+				}
+			} else {
+				switch f.Type.Kind() {
+				case reflect.Slice:
+					Logger.Info("Show Not Here")
+				default:
+					inFormat := fmt.Sprintf("`%v` in ( %v )", k, inExprision)
+					mdb = mdb.Where(inFormat, inValues...)
+					cdb = cdb.Where(inFormat, inValues...)
+				}
+			}
 		}
 	}
+
 	total := 0
 	cdb.Count(&total)
-	if err := mdb.Limit(count).Offset(s).Order("id " + order).Find(v).Error; nil != err {
+	if err := mdb.Limit(count).Offset(s).Order(pri_key + " " + order).Find(v).Error; nil != err {
 		return err
 	}
 
