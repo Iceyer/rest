@@ -114,7 +114,6 @@ func PageQuery(c *gin.Context, v interface{}) error {
 			if 1 == len(inValues) {
 				//for int/bool
 				inFormat := fmt.Sprintf("`%v` = ?", k)
-				Logger.Info("%v %v %v", f.Name, k, f.Type.Kind())
 				switch f.Type.Kind() {
 				case reflect.String:
 					inFormat := fmt.Sprintf("`%v` like ?", k)
@@ -136,11 +135,9 @@ func PageQuery(c *gin.Context, v interface{}) error {
 					cdb = cdb.Where(inFormat, vb)
 				case reflect.Int:
 					id, err := strconv.Atoi(fmt.Sprint(inValues[0]))
-					Logger.Info("%v %v %v", f.Name, id, err)
 					if nil != err {
 						return err
 					}
-					Logger.Info("%v %v %v", f.Name, inFormat, id)
 					mdb = mdb.Where(inFormat, id)
 					cdb = cdb.Where(inFormat, id)
 				default:
@@ -151,7 +148,7 @@ func PageQuery(c *gin.Context, v interface{}) error {
 			} else {
 				switch f.Type.Kind() {
 				case reflect.Slice:
-					Logger.Info("Show Not Here")
+					Logger.Info("Should Not Here")
 				default:
 					inFormat := fmt.Sprintf("`%v` in ( %v )", k, inExprision)
 					mdb = mdb.Where(inFormat, inValues...)
