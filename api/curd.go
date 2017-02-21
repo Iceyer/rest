@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
-	. "pkg.deepin.io/server/utils/logger"
 	"reflect"
+
+	"github.com/gin-gonic/gin"
+	"pkg.deepin.io/server/utils/logger"
 )
 
 type CURD interface {
@@ -21,19 +22,19 @@ func Create(v interface{}) gin.HandlerFunc {
 
 		curd := reflect.New(reflect.TypeOf(v).Elem()).Interface().(CURD)
 		if err := c.Bind(curd); nil != err {
-			Logger.Warning("Bind object with %v failed: %v", curd.Data(), err)
+			logger.Warning("Bind object with %v failed: %v", curd.Data(), err)
 			rr.Error(400, NewError(ErrIllegalDataFormat, err.Error()))
 			return
 		}
 
 		if err := curd.Check(); nil != err {
-			Logger.Warning("Check object %v failed: %v", curd.Data(), err)
+			logger.Warning("Check object %v failed: %v", curd.Data(), err)
 			rr.Error(400, NewError(err, ""))
 			return
 		}
 
 		if err := curd.Create(); nil != err {
-			Logger.Error("Create object %v failed: %v", curd.Data(), err)
+			logger.Error("Create object %v failed: %v", curd.Data(), err)
 			rr.Error(400, NewError(err, ""))
 			return
 		}
@@ -49,13 +50,13 @@ func Delete(v interface{}) gin.HandlerFunc {
 		curd := reflect.New(reflect.TypeOf(v).Elem()).Interface().(CURD)
 		id := c.Params.ByName("id")
 		if err := curd.GetBy("`id`=?", id); nil != err {
-			Logger.Error("%v", err)
+			logger.Error("%v", err)
 			rr.Error(404, NewError(err, ""))
 			return
 		}
 
 		if err := curd.Delete(); nil != err {
-			Logger.Error("%v", err)
+			logger.Error("%v", err)
 			rr.Error(400, NewError(err, ""))
 			return
 		}

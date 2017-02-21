@@ -13,7 +13,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"pkg.deepin.io/server/utils/config"
 	"pkg.deepin.io/server/utils/db"
-	. "pkg.deepin.io/server/utils/logger"
+	"pkg.deepin.io/server/utils/logger"
 )
 
 var (
@@ -148,7 +148,7 @@ func PageQuery(c *gin.Context, v interface{}) error {
 			} else {
 				switch f.Type.Kind() {
 				case reflect.Slice:
-					Logger.Info("Should Not Here")
+					logger.Info("Should Not Here")
 				default:
 					inFormat := fmt.Sprintf("`%v` in ( %v )", k, inExprision)
 					mdb = mdb.Where(inFormat, inValues...)
