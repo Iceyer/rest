@@ -41,7 +41,7 @@ func PageQuery(c *gin.Context, v interface{}) error {
 	}
 	if count > 2000 {
 		//Return Error
-		return errors.New("InvaildCount")
+		return errors.New("Invalid Count")
 	}
 	s := (page - 1) * count
 
@@ -66,14 +66,14 @@ func PageQuery(c *gin.Context, v interface{}) error {
 		tv = tv.Elem()
 	}
 
-	pri_key := "id"
+	priKey := "id"
 	mdb := db.Maria
 	cdb := mdb.Model(tv.Interface())
 	//Check Json Tag First
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
-		if f.Tag.Get("gorm") == "primary_key" {
-			pri_key = gorm.ToDBName(f.Name)
+		if strings.Contains(f.Tag.Get("gorm"), "primary_key") {
+			priKey = gorm.ToDBName(f.Name)
 		}
 		jsonKey := f.Tag.Get("json")
 		if "" == jsonKey {
@@ -160,13 +160,13 @@ func PageQuery(c *gin.Context, v interface{}) error {
 
 	total := 0
 	cdb.Count(&total)
-	if err := mdb.Limit(count).Offset(s).Order(pri_key + " " + order).Find(v).Error; nil != err {
+	if err := mdb.Limit(count).Offset(s).Order(priKey + " " + order).Find(v).Error; nil != err {
 		return err
 	}
 
 	last := total / count
 	if total%count > 0 {
-		last += 1
+		last++
 	}
 	// Set Pageable Header
 	c.Writer.Header().Set("X-Total-Resource", fmt.Sprint(total))
